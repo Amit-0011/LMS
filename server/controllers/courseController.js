@@ -3,9 +3,9 @@ import Course from "../models/Course.js";
 // Get All Courses
 export const getAllCourses = async (req, res) => {
     try {
-        const couseses = await Course.find({isPublished: true}).select(['-courseContent', '-enrolledStudents']).populate({path: 'educator'})
+        const courses = await Course.find({isPublished: true}).select(['-courseContent', '-enrolledStudents']).populate({path: 'educator'})
 
-        res.json({success: true, couseses})
+        res.json({success: true, courses})
     } catch (error) {
         res.json({ success: false, message: error.message});
     }
