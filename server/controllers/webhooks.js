@@ -61,7 +61,7 @@ export const clerkWebhooks = async (req, res) => {
 // Stripe Payment Gateway
 const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY)
 
-export const stripeWebhooks = async (req, res) => {
+export const stripeWebhooks = async (request, response) => {
   const sig = request.headers['stripe-signature'];
 
   let event;
@@ -83,9 +83,9 @@ export const stripeWebhooks = async (req, res) => {
         payment_intent: paymentIntentId
       })
 
-      const { purchseId } = session.data[0].metadata;
+      const { purchaseId } = session.data[0].metadata;
 
-      const purchaseData = await Purchase.findById(purchseId)
+      const purchaseData = await Purchase.findById(purchaseId)
       const userData = await User.findById(purchaseData.userId)
       const courseData = await Course.findById(purchaseData.courseId.toString())
 
