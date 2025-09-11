@@ -130,25 +130,46 @@
 
 
 
-
+// debuged
 import { Webhook } from "svix";
 import User from "../models/User.js";
 import Stripe from "stripe";
 import { Purchase } from "../models/Purchase.js";
 import Course from "../models/Course.js";
 
+// Stripe instance
+const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY);
+
 // API Controller Function to Manage Clerk User with database
 export const clerkWebhooks = async (req, res) => {
+  console.log('Clerk webhook received');
+  
   try {
+    if (!process.env.CLERK_WEBHOOK_SECRET) {
+      console.error('CLERK_WEBHOOK_SECRET not defined');
+      return res.status(500).json({success: false, message: 'Server configuration error'});
+    }
+
     const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
 
-    await whook.verify(JSON.stringify(req.body), {
+    // Convert buffer to string for Clerk webhook
+    const payload = req.body.toString();
+    const headers = {
       "svix-id": req.headers["svix-id"],
       "svix-timestamp": req.headers["svix-timestamp"],
       "svix-signature": req.headers["svix-signature"],
-    })
+    };
 
-    const { data, type } = req.body
+    let event;
+    try {
+      event = whook.verify(payload, headers);
+    } catch (verifyError) {
+      console.error('Clerk webhook verification failed:', verifyError.message);
+      return res.status(400).json({success: false, message: 'Webhook verification failed'});
+    }
+
+    const { data, type } = event;
+    console.log('Clerk event type:', type);
 
     switch (type) {
         case 'user.created': {
@@ -159,8 +180,8 @@ export const clerkWebhooks = async (req, res) => {
                 imageUrl: data.image_url,
             }
 
-            await User.create(userData)
-            res.json({})
+            await User.create(userData);
+            console.log('User created:', userData._id);
             break;
         }
             
@@ -170,30 +191,31 @@ export const clerkWebhooks = async (req, res) => {
                 name: data.first_name + " " + data.last_name,
                 imageUrl: data.image_url,
             }
-            await User.findByIdAndUpdate(data.id, userData)
-            res.json({})
+            await User.findByIdAndUpdate(data.id, userData);
+            console.log('User updated:', data.id);
             break;
         }
 
         case 'user.deleted': {
-            await User.findByIdAndDelete(data.id)
-            res.json({})
+            await User.findByIdAndDelete(data.id);
+            console.log('User deleted:', data.id);
             break;
         }
     
         default:
+            console.log('Unhandled Clerk event type:', type);
             break;
     }
 
+    return res.json({received: true});
+
   } catch (error) {
     console.error('Clerk webhook error:', error);
-    res.status(500).json({success: false, message: error.message})
+    return res.status(500).json({success: false, message: error.message});
   }
 };
 
-// Stripe Payment Gateway
-const stripeInstance = new Stripe(process.env.STRIPE_SECRET_KEY)
-
+// Stripe webhook handler
 export const stripeWebhooks = async (request, response) => {
   console.log('Stripe webhook received');
   
@@ -207,12 +229,25 @@ export const stripeWebhooks = async (request, response) => {
       return response.status(500).json({error: 'Server configuration error'});
     }
 
-    event = Stripe.webhooks.constructEvent(request.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    console.log('Webhook verified successfully:', event.type);
+    if (!sig) {
+      console.error('No stripe signature header');
+      return response.status(400).json({error: 'No signature header'});
+    }
+
+    // Use raw body from express.raw() middleware
+    event = stripeInstance.webhooks.constructEvent(
+      request.body, 
+      sig, 
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+    console.log('Stripe webhook verified successfully:', event.type);
   }
   catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
-    return response.status(400).send(`Webhook Error: ${err.message}`);
+    console.error('Stripe webhook signature verification failed:', err.message);
+    return response.status(400).json({
+      error: 'Webhook verification failed',
+      message: err.message
+    });
   }
 
   // Handle the event with proper error handling
@@ -324,13 +359,12 @@ export const stripeWebhooks = async (request, response) => {
           }
         } catch (failedPaymentError) {
           console.error('Error processing failed payment:', failedPaymentError);
-          // Don't return error here, just log it
         }
         break;
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`Unhandled Stripe event type: ${event.type}`);
     }
 
     // Always return success response to Stripe
@@ -340,7 +374,6 @@ export const stripeWebhooks = async (request, response) => {
     console.error('Error processing stripe webhook:', error);
     console.error('Error stack:', error.stack);
     
-    // Return error response but don't crash
     return response.status(500).json({
       error: 'Webhook processing failed',
       message: error.message
