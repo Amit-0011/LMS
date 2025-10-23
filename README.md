@@ -2,10 +2,6 @@
 
 **Live demo:** [https://edemy-frontend-eosin.vercel.app/](https://edemy-frontend-eosin.vercel.app/)
 
-> This repository contains the frontend for **Edemy**, a modern Learning Management System (LMS) user interface (student + educator dashboards, course pages, player, enrollment flows).
-
----
-
 ## Overview
 
 Edemy is a full-featured LMS that provides learners and educators with course discovery, enrollment, video playback, progress tracking and educator tools (course creation, student management). This README focuses on the **frontend** project: how to run it locally, configure environment variables, and deploy to Vercel.
