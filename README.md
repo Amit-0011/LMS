@@ -1,4 +1,4 @@
-# Edemy — Frontend (React)
+# Edemy [Learning Management System]
 
 **Live demo:** [https://edemy-frontend-eosin.vercel.app/](https://edemy-frontend-eosin.vercel.app/)
 
