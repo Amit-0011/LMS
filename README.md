@@ -201,7 +201,7 @@ STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
 ```
 cd server
 npm install
-npm run dev
+npm run server 
 ```
 
 ### Frontend
